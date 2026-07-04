@@ -1,0 +1,133 @@
+pico-ray cartridge v1.0
+__meta__
+name=Interactive Maze PoC Game
+author=AI_Collaborator
+license=MIT
+version=0.1.0
+mode=picoray
+
+__lua__
+-- Player states (Spawns perfectly in the center of the first open tile)
+local px = 12
+local py = 12
+local score = 0
+
+-- Maze grid structure generated inside a 16x16 chunk of the 32x32 mapRAM
+-- 1 = Wall, 0 = Empty floor, 2 = Gold Coin
+local maze = {
+    {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+    {1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,1},
+    {1,0,1,0,1,0,1,1,1,1,0,1,0,1,0,1},
+    {1,0,1,0,0,0,0,0,2,1,0,0,0,1,0,1},
+    {1,0,1,1,1,1,1,1,0,1,1,1,1,1,0,1},
+    {1,0,0,0,0,0,2,1,0,0,0,0,0,1,0,1},
+    {1,1,1,1,0,1,1,1,1,1,1,0,1,1,0,1},
+    {1,0,0,1,0,0,0,0,0,0,1,0,0,1,0,1},
+    {1,0,2,1,1,1,1,0,1,0,1,1,0,1,0,1},
+    {1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,1},
+    {1,1,1,1,1,0,1,0,1,1,0,1,1,1,0,1},
+    {1,0,0,0,1,0,1,0,0,1,0,0,0,1,0,1},
+    {1,0,1,0,1,0,1,1,0,1,1,1,0,1,0,1},
+    {1,0,1,0,0,0,2,1,0,0,0,1,0,0,0,1},
+    {1,0,1,1,1,1,1,1,1,1,0,0,0,1,0,1},
+    {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
+}
+
+function _init()
+    px = 10
+    py = 12
+    score = 0
+    scorex = (32 - 13) * 4
+    scorey = (15 * 8) + 1
+
+    -- 1. SEAMLESS HARDWARE INJECTION: Push our maze matrix straight into the kernel mapRAM
+    for my = 1, #maze do
+        for mx = 1, #maze[my] do
+            -- We pass pure 0-indexed positions (0 to 15) matching C expectations perfectly
+            mset(mx - 1, my - 1, maze[my][mx])
+        end
+    end
+end
+
+function _update()
+    local dx = 0
+    local dy = 0
+
+    -- Read directional inputs smoothly
+    if btn(0) then dx = -1 end -- Left
+    if btn(1) then dx =  1 end -- Right
+    if btn(2) then dy = -1 end -- Up
+    if btn(3) then dy =  1 end -- Down
+
+    if dx ~= 0 or dy ~= 0 then
+        local next_px = px + dx
+        local next_py = py + dy
+        
+        -- Each tile is exactly 8x8 pixels. 
+        -- To check collisions correctly, we scan the center point of the player cross (4px padding)
+        local tile_x = math.floor((next_px + 3) / 8)
+        local tile_y = math.floor((next_py + 3) / 8)
+
+        -- 3. COLLISION VERIFICATION: Read cell status directly from kernel mapRAM
+        local target_tile = mget(tile_x, tile_y)
+
+        if target_tile ~= 1 then
+            px = next_px
+            py = next_py
+
+            -- 4. ITEM COLLECTION
+            if target_tile == 2 then
+                score = score + 10
+                mset(tile_x, tile_y, 0) -- Clear coin from RAM
+            end
+        end
+    end
+end
+
+function _draw()
+    cls(1) -- Clear to PICO-8 Dark Blue
+
+    -- 5. MAP RENDERING LAYER
+    for ty = 0, 15 do
+        for tx = 0, 15 do
+            local tile = mget(tx, ty)
+            local screen_x = tx * 8
+            local screen_y = ty * 8
+
+            if tile == 1 then
+                -- FIX: Solid Brown wall block drawing using correct boundary bounds
+                for ly = 0, 7 do
+                    for lx = 0, 7 do
+                        pset(screen_x + lx, screen_y + ly, 4)
+                    end
+                end
+            elseif tile == 2 then
+                -- Draw a glowing Gold Coin dot index 10
+                pset(screen_x + 3, screen_y + 3, 10)
+                pset(screen_x + 4, screen_y + 3, 10)
+                pset(screen_x + 3, screen_y + 4, 10)
+                pset(screen_x + 4, screen_y + 4, 10)
+            end
+        end
+    end
+
+    -- 6. PLAYER RENDERING LAYER
+    -- Draw player cross pixel shape perfectly aligned with its collision vector
+    pset(px + 3, py + 1, 8)
+    pset(px + 4, py + 1, 8)
+    pset(px + 2, py + 2, 8)
+    pset(px + 3, py + 2, 14)
+    pset(px + 4, py + 2, 14)
+    pset(px + 5, py + 2, 8)
+    pset(px + 2, py + 3, 8)
+    pset(px + 3, py + 3, 14)
+    pset(px + 4, py + 3, 14)
+    pset(px + 5, py + 3, 8)
+    pset(px + 3, py + 4, 8)
+    pset(px + 4, py + 4, 8)
+
+    -- 7. MULTILINGUAL UI OVERLAY
+    print("SCARAB OF PRAY", 4, 2, 7) 
+    print("SCORE:", scorex, scorey, 9)       
+    print(string.format("%04d", score), scorex + (8*4), scorey, 10) 
+end

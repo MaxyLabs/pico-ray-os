@@ -1,0 +1,233 @@
+pico-ray cartridge v1.0
+__meta__
+name=Cyberpunk 2048
+author=AI_Collaborator
+license=MIT
+version=0.1.0
+mode=picoray
+
+__lua__
+-- CYBERPUNK 2048 MAINFRAME HACK
+local grid = {}
+local score = 0
+local gameOver = false
+
+function _init()
+  score = 0
+  gameOver = false
+  for r = 1, 4 do
+    grid[r] = {0, 0, 0, 0}
+  end
+  spawn_chip()
+  spawn_chip()
+end
+
+function spawn_chip()
+  local empty = {}
+  for r = 1, 4 do
+    for c = 1, 4 do
+      if grid[r][c] == 0 then
+        -- Kézzel készítünk egy táblát az add() helyett az univerzális Lua módhoz
+        empty[#empty + 1] = {r = r, c = c}
+      end
+    end
+  end
+  
+  if #empty > 0 then
+    -- A standard math.random és math.floor használata a tiszta futáshoz
+    local idx = math.floor(math.random() * #empty) + 1
+    local spot = empty[idx]
+    grid[spot.r][spot.c] = (math.random() > 0.1) and 2 or 4
+  end
+end
+
+function _update()
+  if gameOver then
+    if btn(0) then _init() end
+    return
+  end
+
+  local moved = false
+  
+  if btnp(0) then moved = move_left() end   
+  if btnp(1) then moved = move_right() end  
+  if btnp(2) then moved = move_up() end     
+  if btnp(3) then moved = move_down() end   
+  
+  if moved then
+    spawn_chip()
+    check_game_over()
+  end
+end
+
+function _draw()
+  cls(1) -- Sötétkék háttér
+  
+  -- Felső státusz sáv
+  rectfill(0, 0, 128, 10, 2)
+  print("MAINFRAME HACK", 4, 2, 7)
+  print("SCORE:"..score, 78, 2, 10)
+  
+  -- Rács keret
+  rect(4, 16, 120, 108, 5)
+  
+  -- Kirajzoló ciklus
+  for r = 1, 4 do
+    for c = 1, 4 do
+      local val = grid[r][c]
+      local bx = 8 + (c - 1) * 28
+      local by = 20 + (r - 1) * 22
+      
+      if val > 0 then
+        local col = 4
+        if val == 2    then col = 9  end
+        if val == 4    then col = 10 end
+        if val == 8    then col = 8  end
+        if val == 16   then col = 14 end
+        if val == 32   then col = 12 end
+        if val == 64   then col = 11 end
+        if val == 128  then col = 13 end
+        if val == 256  then col = 7  end
+        if val >= 512  then col = 12 end
+        
+        rectfill(bx, by, 24, 18, col)
+        rect(bx, by, 24, 18, 7)
+        
+        -- Szöveg középre igazítása az érték hossza alapján
+        local offset = 9
+        if val > 9   then offset = 6 end
+        if val > 99  then offset = 3 end
+        if val > 999 then offset = 1 end
+        
+        print(""..val, bx + offset, by + 6, 0)
+      else
+        rect(bx, by, 24, 18, 2)
+      end
+    end
+  end
+  
+  if gameOver then
+    rectfill(10, 45, 108, 40, 8)
+    rect(10, 45, 108, 40, 7)
+    print("CONNECTION LOST", 24, 55, 7)
+    print("PRESS LEFT TO REBOOT", 16, 70, 10)
+  end
+end
+
+-- --- MATRICÁK COMPRESS ÉS MERGE LOGIKÁJA ---
+
+function compress(row)
+  local next_row = {0, 0, 0, 0}
+  local idx = 1
+  for i = 1, 4 do
+    if row[i] ~= 0 then
+      next_row[idx] = row[i]
+      idx = idx + 1
+    end
+  end
+  return next_row
+end
+
+function merge(row)
+  local changed = false
+  for i = 1, 3 do
+    if row[i] == row[i+1] and row[i] ~= 0 then
+      row[i] = row[i] * 2
+      score = score + row[i]
+      row[i+1] = 0
+      changed = true
+    end
+  end
+  return row, changed
+end
+
+function slide_row(row)
+  local r1 = compress(row)
+  local r2, m1 = merge(r1)
+  local r3 = compress(r2)
+  
+  local changed = false
+  for i = 1, 4 do
+    if row[i] ~= r3[i] then changed = true end
+  end
+  return r3, changed
+end
+
+-- --- MÁTRIX IRÁNY-MOZGATÓ MOTOROK ---
+
+function move_left()
+  local total_changed = false
+  for r = 1, 4 do
+    local new_row, changed = slide_row(grid[r])
+    grid[r] = new_row
+    if changed then total_changed = true end
+  end
+  return total_changed
+end
+
+function move_right()
+  local total_changed = false
+  for r = 1, 4 do
+    -- Sor megfordítása
+    local row = {grid[r][4], grid[r][3], grid[r][2], grid[r][1]}
+    local new_row, changed = slide_row(row)
+    -- Visszafordítás a rácsba
+    grid[r] = {new_row[4], new_row[3], new_row[2], new_row[1]}
+    if changed then total_changed = true end
+  end
+  return total_changed
+end
+
+function move_up()
+  local total_changed = false
+  for c = 1, 4 do
+    -- Oszlopból csinálunk egy sort
+    local row = {grid[1][c], grid[2][c], grid[3][c], grid[4][c]}
+    local new_row, changed = slide_row(row)
+    -- Visszaírjuk az oszlopba
+    for r = 1, 4 do
+      grid[r][c] = new_row[r]
+    end
+    if changed then total_changed = true end
+  end
+  return total_changed
+end
+
+function move_down()
+  local total_changed = false
+  for c = 1, 4 do
+    -- Oszlopból fordított sort csinálunk
+    local row = {grid[4][c], grid[3][c], grid[2][c], grid[1][c]}
+    local new_row, changed = slide_row(row)
+    -- Visszaírjuk fordítva az oszlopba
+    for r = 1, 4 do
+      grid[r][c] = new_row[5 - r]
+    end
+    if changed then total_changed = true end
+  end
+  return total_changed
+end
+
+-- --- GAME OVER ELLENŐRZŐ MOTOR ---
+
+function check_game_over()
+  -- Ha van még üres hely, nincs vége
+  for r = 1, 4 do
+    for c = 1, 4 do
+      if grid[r][c] == 0 then return end
+    end
+  end
+  -- Ha vízszintesen vagy függőlegesen össze lehet még tolni valamit, nincs vége
+  for r = 1, 4 do
+    for c = 1, 3 do
+      if grid[r][c] == grid[r][c+1] then return end
+    end
+  end
+  for c = 1, 4 do
+    for r = 1, 3 do
+      if grid[r][c] == grid[r+1][c] then return end
+    end
+  end
+  -- Ha ide elér a kód, nincs több lépés -> Game Over!
+  gameOver = true
+end

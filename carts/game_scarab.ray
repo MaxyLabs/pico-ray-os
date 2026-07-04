@@ -1,0 +1,184 @@
+pico-ray cartridge v1.0
+__meta__
+name=Scarab_Dungeon
+author=AI_Collaborator
+version=0.1.0
+license=MIT
+mode=pico8
+
+__gfx__
+....44444444........44444444........44444444........44444444....33333333333333335555555555555555................................
+...44AAAAAA44......44AAAAAA44......44AAAAAA44......44AAAAAA44...33333333333333335666666566666665....44444444....................
+..44AA..AA..A4....44AA..AA..A4....44AA..AA..A4....44AA..AA..A4..33B3333333B333335555555555555555...4499999944...................
+..44AAAAAAAAA4....44AAAAAAAAA4....44AAAAAAAAA4....44AAAAAAAAA4..33333333333333336666566666665666..449999999944..................
+..44AA88888AA4....44AA88888AA4....44AA88888AA4....44AA88888AA4..33333B33333333335555555555555555..4494A99A4944..................
+...44AAAAAA44......44AAAAAA44......44AAAAAA44......44AAAAAA44...33333333333333335666666566666665..444444444444..................
+....48888884........48888884........48888884........48888884....3B33333333333B335555555555555555..44444A4A4444..................
+....88888888........88888888........88888888........88888888....33333333333333336666566666665666..411111111114..................
+....81888818........81888818........81888818........81888818....33333333333333335555555555555555..411111111114..................
+....81111118........81111118........81111118........81111118....33333B33333333335666666566666665..411111111114..................
+....81111118........81111118........81111118........81111118....33333333333333335555555555555555..411111111114..................
+....88888888........88888888........88888888........88888888....33333333333B33336666566666665666..411111111114..................
+.....88..88..........88..88..........88..88..........88..8......33333333333333335555555555555555...4411111144...................
+.....88..88..........8..88..........88..88..........44...4......3B333333333333335666666566666665....44444444....................
+....44....44........4....44........44....44........44...........33333333333333335555555555555555................................
+................................................................33333333333333336666566666665666................................
+
+__map__
+55555555555555550000000000000000
+54444445444444450000000000000000
+54644445464444450000000000000000
+54444445444555450000000000000000
+54444644444544450000000000000000
+54444445444546450000000000000000
+54444445554555550000000000000000
+55545555444444450000000000000000
+54444445444444450000000000000000
+54644445455554450000000000000000
+54444444454454450000000000000000
+54445555454654450000000000000000
+54445445455454450000000000000000
+54645465444444450000000000000000
+54444445444444450000000000000000
+55555555555555550000000000000000
+
+__lua__
+-- Player states
+local px = 16
+local py = 16
+local score = 0
+
+local current_frame = 0
+local total_frames = 4
+local frame_timer = 0.0
+local frame_delay = 0.12
+local is_facing_left = false
+local is_moving = false
+
+-- FIX 1: Pure PICO-8 standard 16x16 macro blitter utilizing +16 stride row shifts!
+-- This seamlessly hooks to the spr(n, x, y, w, h, flip_x, flip_y) compatibility API.
+local function draw_16x16_sprite(tile_id, sx, sy, flip_x)
+    local base_block = tile_id
+    
+    if flip_x then
+        -- Swap left and right sub-blocks columns to execute mirroring safely
+        spr(base_block + 1,  sx,     sy,     1, 1, true,  false)
+        spr(base_block,      sx + 8, sy,     1, 1, true,  false)
+        spr(base_block + 17, sx,     sy + 8, 1, 1, true,  false)
+        spr(base_block + 16, sx + 8, sy + 8, 1, 1, true,  false)
+    else
+        spr(base_block,      sx,     sy,     1, 1, false, false) -- Top-Left
+        spr(base_block + 1,  sx + 8, sy,     1, 1, false, false) -- Top-Right
+        spr(base_block + 16, sx,     sy + 8, 1, 1, false, false) -- Bottom-Left
+        spr(base_block + 17, sx + 8, sy + 8, 1, 1, false, false) -- Bottom-Right
+    end
+end
+
+function _init()
+    px = 16
+    py = 16
+    score = 0
+end
+
+local function can_move_to(next_x, next_y)
+    local p_left = next_x + 2
+    local p_top = next_y + 2
+    local p_right = p_left + 12
+    local p_bottom = p_top + 14
+
+    local start_tile_x = math.floor(p_left / 16)
+    local end_tile_x   = math.floor(p_right / 16)
+    local start_tile_y = math.floor(p_top / 16)
+    local end_tile_y   = math.floor(p_bottom / 16)
+
+    for ty = start_tile_y, end_tile_y do
+        for tx = start_tile_x, end_tile_x do
+            if mget(tx, ty) == 5 then return false end
+        end
+    end
+    return true
+end
+
+function _update()
+    local dx = 0
+    local dy = 0
+    is_moving = false
+
+    if btn(0) then dx = -1; is_facing_left = true;  is_moving = true end
+    if btn(1) then dx =  1; is_facing_left = false; is_moving = true end
+    if btn(2) then dy = -1; is_moving = true end
+    if btn(3) then dy =  1; is_moving = true end
+
+    if dx ~= 0 and can_move_to(px + dx, py) then px = px + dx end
+    if dy ~= 0 and can_move_to(px, py + dy) then py = py + dy end
+
+    frame_timer = frame_timer + 0.016
+    if frame_timer >= frame_delay then
+        frame_timer = 0.0
+        current_frame = (current_frame + 1) % total_frames
+    end
+
+    local center_tile_x = math.floor((px + 6 + 0.5) / 16)
+    local center_tile_y = math.floor((py + 7 + 0.5) / 16)
+    
+    if mget(center_tile_x, center_tile_y) == 6 then
+        score = score + 100
+        mset(center_tile_x, center_tile_y, 4) 
+    end
+end
+
+function _draw()
+    cls(0) 
+
+    local cam_x = math.floor(px - (128 / 2) + 6)
+    local cam_y = math.floor(py - (128 / 2) + 7)
+    if cam_x < 0 then cam_x = 0 end if cam_y < 0 then cam_y = 0 end
+    if cam_x > 128 then cam_x = 128 end if cam_y > 128 then cam_y = 128 end
+
+    -- 1. FIX 2: CONVERT MAP TILE IDs TO REAL PICO-8 BLOCKS IN THE 16-STRIDE GRID
+    for ty = 0, 15 do
+        for tx = 0, 15 do
+            local tile_id = mget(tx, ty)
+            local screen_x = (tx * 16) - cam_x
+            local screen_y = (ty * 16) - cam_y
+
+            if screen_x >= -16 and screen_x < 128 and screen_y >= -16 and screen_y < 128 then
+                -- Tile 4 (Floor) -> Block 4. Tile 5 (Wall) -> Block 6. Tile 6 (Chest) -> Block 8.
+                local spr_idx = 8
+                if tile_id == 5 then spr_idx = 10 end
+                if tile_id == 6 then
+                    draw_16x16_sprite(8, screen_x, screen_y, false)
+                    spr_idx = 12
+                end
+                
+                if tile_id > 0 then
+                    draw_16x16_sprite(spr_idx, screen_x, screen_y, false)
+                end
+            end
+        end
+    end
+
+    -- 2. PROCEDURAL PLAYER CHARACTER ANIMATION LAYER
+    local player_screen_x = math.floor(px - cam_x)
+    local player_screen_y = math.floor(py - cam_y)
+    
+    local final_x = player_screen_x
+    local final_y = player_screen_y
+
+    if is_moving then
+        if current_frame == 1 or current_frame == 3 then final_y = final_y - 1 end 
+    else
+        if current_frame == 1 or current_frame == 2 then final_y = final_y + 1 end 
+    end
+
+    -- FIX 3: Dynamic 16-stride mapping for the 4 horizontal animation walk frames!
+    -- Frame 0 = block 0, Frame 1 = block 2, Frame 2 = block 4, Frame 3 = block 6.
+    local player_spr_base = current_frame * 2
+    
+    draw_16x16_sprite(player_spr_base, final_x, final_y, is_facing_left) 
+
+    -- 3. HUD CONTAINER STRIP
+    rectfill(0, 0, 128, 9, 1)
+    print("ANUBIS WAKING", 4, 2, 7)
+    print(string.format("GOLD:%04d", score), 84, 2, 10)
+end
