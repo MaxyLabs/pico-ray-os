@@ -51,8 +51,8 @@ EXPORT void Plugin_Cleanup(void) {
 // This bundles the entire module lifecycle into a single exportable structural object
 EXPORT const AppInterface Plugin_App = {
     .GetConfig     = Plugin_GetConfig,
-    .Init          = Plugin_Init,
     .RegisterMenus = Plugin_RegisterMenus,
+    .Init          = Plugin_Init,
     .Update        = Plugin_Update,
     .Draw          = Plugin_Draw,
     .Cleanup       = Plugin_Cleanup

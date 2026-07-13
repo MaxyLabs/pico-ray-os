@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "../framework.h"
@@ -360,6 +361,50 @@ void PR_SSet(int sheetX, int sheetY, int colorId) {
 
     // Dynamic write stream straight to the active loaded cartridge memory bank
     cart->spriteRAM[memoryIndex] = (unsigned char)colorId;
+}
+
+// Implementation of the industry-standard strlcpy for guaranteed safety
+size_t PR_StrlCpy(char *dst, const char *src, size_t siz) {
+    register char *d = dst;
+    register const char *s = src;
+    register size_t n = siz;
+
+    // Copy as many bytes as will fit
+    if (n != 0 && --n != 0) {
+        do {
+            if ((*d++ = *s++) == 0)
+                break;
+        } while (--n != 0);
+    }
+
+    // Not enough room in dst, terminate dst and append rest of src
+    if (n == 0) {
+        if (siz != 0)
+            *d = '\0'; // Always guarantee secure closure
+        while (*s++)
+            ;
+    }
+
+    return(s - src - 1); // Returns total length of src string tried to create
+}
+
+// Concrete implementation of our safe string formatting gate
+bool PR_StrFormat(char *dst, size_t siz, const char *format, ...) {
+    if (dst == NULL || siz == 0 || format == NULL) return false;
+
+    va_list args;
+    va_start(args, format);
+    // vsnprintf handles variable arguments safely matching buffer constraints
+    int written = vsnprintf(dst, siz, format, args);
+    va_end(args);
+
+    // If written bytes equal or exceed size, or an error occurs, truncation happened
+    if (written < 0 || (size_t)written >= siz) {
+        dst[siz - 1] = '\0'; // Enforce rigid secure closure at bounds limit
+        return false;        // Signal that text data was truncated
+    }
+
+    return true; // Success path: data fits perfectly within memory slot
 }
 
 // CENTRAL FRAMEBUFFER RASTERIZATION GATEWAY

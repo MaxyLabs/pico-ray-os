@@ -35,31 +35,34 @@ static bool EnsureSpriteRAMCapacity(CartridgeRAM *cart, int requiredCapacity) {
 static void* loadedCartHandle = NULL; // A betöltött dylib mutatója
 
 void PR_LoadPluginCartridge(void) {
-    // --- HARMADIK FÉL JÁTÉKÁNAK BETÖLTÉSE ---
+    // --- THIRD PARTY PLUGIN CARTRIDGE LOADER GATE ---
     if (loadedCartHandle != NULL) {
-        dlclose(loadedCartHandle); // Korábbi dylib lezárása
+        dlclose(loadedCartHandle); // Close previous shared dynamic library instance safely
         loadedCartHandle = NULL;
     }
 
-    // macOS natív dylib megnyitás (RTLD_LAZY = azonnali betöltés futásidőben)
+    // Open the native dynamic library runtime layer
     loadedCartHandle = dlopen("carts/custom_game.dylib", RTLD_LAZY);
 
     if (loadedCartHandle != NULL) {
-        // Függvények megkeresése a binárisban
-        AppConfig (*extGetConfig)(void) = (AppConfig(*)(void))dlsym(loadedCartHandle, "Plugin_GetConfig");
-        void (*extInit)(void)      = dlsym(loadedCartHandle, "Plugin_Init");
-        void (*extUpdate)(Vector2) = dlsym(loadedCartHandle, "Plugin_Update");
-        void (*extDraw)(void)      = dlsym(loadedCartHandle, "Plugin_Draw");
-        void (*extCleanup)()       = dlsym(loadedCartHandle, "Plugin_Cleanup");
+        // Query and extract the global public interface object straight from the binary symbol table
+        AppInterface *exportedApp = (AppInterface*)dlsym(loadedCartHandle, "Plugin_App");
 
-        if (extInit != NULL && extUpdate != NULL && extDraw != NULL) {
-            // Sikeres betöltés! Átadjuk a 4 függvénymutatót a Frameworknek
-            SwitchApp(Plugin_App); 
+        // --- CONTEXTUAL DYNAMIC LINKER DEBUG MATRIX ---
+        // We print the memory address of the retrieved AppInterface object structure
+        printf("PICO-RAY | DEBUG | exportedApp Address: %p\n", (void*)exportedApp);
+
+        if (exportedApp != NULL) {
+            printf("PICO-RAY | KERNEL | Plugin package linked successfully. Switching context.\n");
+            
+            // Pass the dereferenced structure to the framework app manager
+            SwitchApp(*exportedApp); 
         } else {
-            printf("ERROR: Required funtions are missing in dylib!\n");
+            // Detailed link diagnostics print out utilizing native dlerror channel
+            printf("ERROR: Could not find 'Plugin_App' export symbol inside dylib: %s\n", dlerror());
         }
     } else {
-        printf("ERROR: Failed to load dylib: %s\n", dlerror());
+        printf("ERROR: Failed to load dylib file: %s\n", dlerror());
     }
 }
 

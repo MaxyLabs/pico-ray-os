@@ -14,6 +14,7 @@ FILE_OUT="picoray"
 FLAG_DEBUG="-g"
 PKGCONFIG_RAYLIB="$(pkg-config --libs --cflags raylib)"
 PKGCONFIG_LUA="$(pkg-config --libs --cflags lua)"
+PKGCONFIG_CURL="$(pkg-config --libs --cflags libcurl)"
 
 if [[ "${ENABLE_DEBUG}" -eq 0 ]]; then
   FLAG_DEBUG=""
@@ -29,6 +30,7 @@ eval cc \
   $(echo "${LIST_SRC_FILES}" | tr "\n" " ") \
   ${PKGCONFIG_RAYLIB} \
   ${PKGCONFIG_LUA} \
+  ${PKGCONFIG_CURL} \
   -o ${FILE_OUT}
 
 echo "# [2] Build successful: ./${FILE_OUT}"

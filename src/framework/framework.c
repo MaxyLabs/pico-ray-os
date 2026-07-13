@@ -53,13 +53,15 @@ static AudioSystem    audioSystem;
 static GraphicsSystem graphicsSystem;
 static KernelState    kernelState;
 static MenuSystem     menuSystem;
+//static DynamicPauseMenu globalPauseMenu = {0};
+static PauseMenuSystem globalPauseMenu = {0};
 static CartridgeRAM   cartridgeRAM;
 static CartridgeMeta  cartridgeMeta;
 static AppInterface   activeApp;
 static char appSwitchStatusMessage[96];
 static int appSwitchStatusFrames = 0;
 
-#define KERNEL_WARNING_RING_CAPACITY 8
+
 static char kernelWarningRing[KERNEL_WARNING_RING_CAPACITY][96];
 static int kernelWarningRingStart = 0;
 static int kernelWarningRingCount = 0;
@@ -106,16 +108,18 @@ static void SetAppSwitchStatusMessage(const char *message) {
 }
 
 // --- Central Subsystem Core Access Gateways ---
-const CartridgeRAM*   PR_GetDefaultCartridgeRAM(void) { return &defaultCartridgeRAM; }
+const CartridgeRAM*  PR_GetDefaultCartridgeRAM(void) { return &defaultCartridgeRAM; }
 
-AudioSystem*     PR_GetAudioSystem(void)     { return &audioSystem; }
-GraphicsSystem*  PR_GetGraphicsSystem(void)  { return &graphicsSystem; }
-KernelState*     PR_GetKernelState(void)     { return &kernelState; }
-CartridgeRAM*    PR_GetCartridgeRAM(void)    { return &cartridgeRAM; }
-CartridgeMeta*   PR_GetCartridgeMeta(void)   { return &cartridgeMeta; }
-MenuSystem*      PR_GetMenuSystem(void)      { return &menuSystem; }
-FileDialogState* PR_GetFileDialogSatte(void) { return &fileDialogState; }
 AppConfig        PR_GetActiveAppConfig(void) { return activeApp.GetConfig(); }
+
+AudioSystem*     PR_GetAudioSystem(void) { return &audioSystem; }
+GraphicsSystem*  PR_GetGraphicsSystem(void) { return &graphicsSystem; }
+KernelState*     PR_GetKernelState(void) { return &kernelState; }
+CartridgeRAM*    PR_GetCartridgeRAM(void) { return &cartridgeRAM; }
+CartridgeMeta*   PR_GetCartridgeMeta(void) { return &cartridgeMeta; }
+MenuSystem*      PR_GetMenuSystem(void) { return &menuSystem; }
+PauseMenuSystem* PR_GetPauseMenu(void) { return &globalPauseMenu; }
+FileDialogState* PR_GetFileDialogState(void) { return &fileDialogState; }
 
 bool PR_GetShouldQuitOS(void)    { return kernelState.shouldQuitOS; }
 int  PR_GetActivePaletteId(void) { return graphicsSystem.currentPaletteId; }
@@ -189,7 +193,6 @@ void PR_PreRenderFontAtlas(void) {
     printf("PICO-RAY OS | FONTS | Built layered multi-table texture atlas holding %d glyphs.\n", totalGlyphsInAtlas);
 }
 
-
 void PR_PreRenderIconAtlas(void) {
     // Width: 6 icons * 6px = 36px. Height: 6px.
     int atlasW = ICON_COUNT * 6;
@@ -230,9 +233,6 @@ void PR_AddSystemMenuDefaults(void) {
     Menu fileMenu = PR_CreateMenu("File");
     PR_RegisterApplicationMenu(fileMenu);
 }
-
-// Clears layout data pools and executes dynamic spacing bounding checks matching font typography rules
-// --- Inside framework/modules/pr-ui-menu.c ---
 
 // Clears layout data pools and executes dynamic spacing bounding checks matching font typography rules
 void PR_RebuildMenuBar(void) {
@@ -470,7 +470,7 @@ void SwitchApp(AppInterface newApp) {
 void PR_Callback_CloseAboutWindow(void) { kernelState.isAboutOpen = false; }
 void PR_Callback_CloseSystemInfoWindow(void) { kernelState.isSystemInfoOpen = false; }
 void PR_Callback_CloseApp(void) {
-    printf("PICO-RAY OS | KERNEL: Ejecting active application. Cleaning audio registers...\n");
+    printf("PICO-RAY OS | KERNEL | Ejecting active application. Cleaning audio registers...\n");
     
     // Forcefully kill any active streaming track background cycles right before unloading the workspace app
     PR_StopMusic();
@@ -480,65 +480,13 @@ void PR_Callback_CloseApp(void) {
     kernelState.shouldCloseApp = true;
 }
 
-void PR_DrawPauseWindow(void) {
-    // Renders on top of everything inside the active virtualVRAM frame matrix
-    GraphicsSystem *gfx = PR_GetGraphicsSystem();
-    ThemeRegistry theme = themeData[PR_GetActiveThemeId()];
-    // A. TRANSLUCENT OVERLAY FILTER SHADE SCREEN
-    // We use our intermediate mask array to darken the underlying active game frame layout
-    PR_RectFill(0, 0, 128, 128, P8_EXT_BLACK); // Shade backdrop entirely
-    // B. RENDER MAIN WINDOW PLATE (Centred 96x80 window panel box)
-    int winX = 16; int winY = 24;
-    int winW = 96; int winH = 80;
-    
-    PR_RectFill(winX, winY, winW, winH, P8_LIGHT_GREY);
-    PR_Rect(winX, winY, winW, winH, P8_DARK_GREY);
-    
-    // Header plate row accent banner
-    PR_RectFill(winX + 1, winY + 1, winW - 2, 9, P8_DARK_BLUE);
-    PR_PrintPro(gfx->systemFontId, "SYSTEM PAUSED", winX + 12, winY + 2, P8_WHITE);
-    // C. RENDER INTERACTIVE MENU SELECTION ROWS
-    const char *menuStrings[] = { "RESUME GAME", "RESET CART", "VOLUME", "RETURN HOME" };
-    
-    for (int i = 0; i < 4; i++) {
-        int rowY = winY + 18 + (i * 12);
-        int rowW = winW - 12;
-        int rowX = winX + 6;
-        // Live responsive text highlight tracking selectors hooks
-        if (i == kernelState.pauseSelectedIndex) {
-            // Active hover line selection row indicator box
-            PR_RectFill(rowX, rowY - 1, rowW, 9, P8_BLUE);
-            
-            // Add a micro selection dot indicator symbol
-            PR_PrintPro(gfx->systemFontId, ">", rowX + 2, rowY, P8_YELLOW);
-            
-            if (i == 2) {
-                char volText[16]; sprintf(volText, "VOLUME: %d%%", kernelState.systemVolume);
-                PR_PrintPro(gfx->systemFontId, volText, rowX + 10, rowY, P8_WHITE);
-            } else {
-                PR_PrintPro(gfx->systemFontId, menuStrings[i], rowX + 10, rowY, P8_WHITE);
-            }
-        } else {
-            if (i == 2) {
-                char volText[16]; sprintf(volText, "VOLUME: %d%%", kernelState.systemVolume);
-                PR_PrintPro(gfx->systemFontId, volText, rowX + 10, rowY, P8_DARK_GREY);
-            } else {
-                PR_PrintPro(gfx->systemFontId, menuStrings[i], rowX + 10, rowY, P8_DARK_GREY);
-            }
-        }
-    }
-    
-    // Micro branding line row layout footer decor strip
-    PR_Line(winX + 6, winY + 72, winX + winW - 6, winY + 72, P8_DARK_GREY);
-    PR_PrintPro(gfx->systemFontId, "PICO-RAY OS v0.2", winX + 14, winY + 74, P8_DARK_GREY);
-}
-
 
 // --- Framework --- Init / Update / Draw / Cleanup ---
 
 void Framework_Init(void) {
     memset(&kernelState, 0, sizeof(KernelState));
     kernelState.isPreParserEnabled = true;
+    kernelState.isSystemVolumeMuted = false;
 
     //  KERNEL BOOT SEQUENCE & DATA-DRIVEN PRELOAD CACHE
     // This runs exactly ONCE at system startup!
@@ -581,90 +529,16 @@ void Framework_Init(void) {
 
     InitAudioDevice();
     if (IsAudioDeviceReady()) {
-        printf("PICO-RAY OS | KERNEL: Sound card initialized cleanly via structured audio register.\n");
+        printf("PICO-RAY OS | KERNEL | Sound card initialized cleanly via structured audio register.\n");
     } else {
-        printf("PICO-RAY OS | KERNEL CRITICAL ERROR: Audio device failed to spin up!\n");
+        printf("PICO-RAY OS | KERNEL | CRITICAL ERROR: Audio device failed to spin up!\n");
     }
+
+    // Initialize the Dynamic Pause Menu
+    PR_InitPauseMenu(5);
 
     // Switch to Home App
     SwitchApp(Home_App);
-}
-
-// --- Inside src/framework/framework.c ---
-
-bool Update_PauseMenu(MouseState mousePos) {
-    // Persistent cache variable to store the volume level right before triggering MUTE
-    static int cachedVolumeBeforeMute = 75; 
-
-    // Disable the PauseMenu when the active app is: Home
-    if (kernelState.isAppLoaded && strcmp(activeApp.GetConfig().name, "Home") != 0) {
-        if (IsKeyPressed(KEY_ESCAPE)) {
-            kernelState.isPauseMenuOpen = !kernelState.isPauseMenuOpen;
-
-            if (kernelState.isPauseMenuOpen) {
-                kernelState.pauseSelectedIndex = 0; // Reset selector row anchor
-            }
-        }
-    }
-
-    if (kernelState.isPauseMenuOpen) {
-        // Handle menu selection inputs row by row (Vertical navigation)
-        if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
-            kernelState.pauseSelectedIndex--;
-            if (kernelState.pauseSelectedIndex < 0) kernelState.pauseSelectedIndex = 3;
-        }
-        if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
-            kernelState.pauseSelectedIndex++;
-            if (kernelState.pauseSelectedIndex > 3) kernelState.pauseSelectedIndex = 0;
-        }
-
-        // HORIZONTAL CONTROLLER INTERCEPTOR FOR VOLUME SLIDER ROW!
-        if (kernelState.pauseSelectedIndex == 2) {
-            if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
-                kernelState.systemVolume -= 10;
-                if (kernelState.systemVolume < 0) kernelState.systemVolume = 0; // Lock strict 0% floor limit
-                printf("PICO-RAY OS | AUDIO: Master volume decreased down to %d%%\n", kernelState.systemVolume);
-            }
-            if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
-                kernelState.systemVolume += 10;
-                if (kernelState.systemVolume > 100) kernelState.systemVolume = 100; // Lock strict 100% ceiling cap
-                printf("PICO-RAY OS | AUDIO: Master volume increased up to %d%%\n", kernelState.systemVolume);
-            }
-        }
-
-        // Action activation pass via ENTER/SPACE confirmation keystrokes
-        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
-            if (kernelState.pauseSelectedIndex == 0) { // RESUME
-                kernelState.isPauseMenuOpen = false;
-            }
-            else if (kernelState.pauseSelectedIndex == 1) { // RESET CART
-                kernelState.isPauseMenuOpen = false;
-                if (activeApp.Init != NULL) activeApp.Init(); // Re-bootstrap application life-cycle
-            }
-            else if (kernelState.pauseSelectedIndex == 2) { 
-                // FIX: INSTANT TOGGLE MUTE / UNMUTE PIPELINE!
-                // If the system is currently playing audio, mute it and cache the previous level.
-                // If already muted, restore the precise percentage instantly!
-                if (kernelState.systemVolume > 0) {
-                    cachedVolumeBeforeMute = kernelState.systemVolume; // Lock current volume to cache
-                    kernelState.systemVolume = 0;                      // Set instantly to pure silence
-                    printf("PICO-RAY OS | AUDIO: Hardware MUTED [Muted from %d%%]\n", cachedVolumeBeforeMute);
-                } else {
-                    // Restore from cache, ensuring we don't unmute back into a 0% loop trap
-                    kernelState.systemVolume = (cachedVolumeBeforeMute > 0) ? cachedVolumeBeforeMute : 75;
-                    printf("PICO-RAY OS | AUDIO: Hardware UNMUTED straight back to %d%%\n", kernelState.systemVolume);
-                }
-            }
-            else if (kernelState.pauseSelectedIndex == 3) { // CLOSE APP / RETURN HOME
-                kernelState.isPauseMenuOpen = false;
-                PR_Callback_CloseApp(); // Force return channel back to desktop space
-            }
-        }
-
-        return false;  // Blocks input: Freezes further app logical updates
-    } else {
-        return true;
-    }
 }
 
 bool Update_DebugWindow(MouseState mousePos) {
@@ -732,7 +606,7 @@ void Framework_Update(void) {
         SetMusicVolume(audioSystem.backgroundMusic, audioSystem.masterVolume);
     }
 
-    if (Update_PauseMenu(mousePos)) {
+    if (PR_UpdatePauseMenu(mousePos)) {
         if (Update_DebugWindow(mousePos)) {
             if (Update_AboutWindow(mousePos)) {
                 if (Update_FileDialogWindow(mousePos)) {
@@ -757,7 +631,7 @@ void Framework_Draw(void) {
         activeApp.Draw(); 
     }
 
-    if (kernelState.isPauseMenuOpen)  { PR_DrawPauseWindow(); }
+    if (kernelState.isPauseMenuOpen)  { PR_DrawPauseMenu(); }
     // if (kernelState.isDebugOpen)     { PR_DrawDebugWindow(); }
     //if (dialogState.isOpen)          { PR_DrawFileDialog(); }
     if (PR_IsFileDialogOpen())        { PR_DrawFileDialog(); }
@@ -835,6 +709,9 @@ void Framework_Cleanup(void) {
         free(cartridgeRAM.mapRAM); 
         cartridgeRAM.mapRAM = NULL; 
     }
+
+    // Clean up memory on Dynamic Pause Menu
+    PR_CleanupPauseMenu();
 
     // Safely erase our active software VRAM and Font Atlas image sectors
     UnloadImage(graphicsSystem.virtualVRAM);

@@ -1,28 +1,35 @@
 #include "../framework.h"
 
 // --- CENTRAL SYSTEM UI THEME REGISTRY ---
-// Completely independent from the hardware palette arrays
 const ThemeRegistry themeData[THEME_COUNT] = {
     [THEME_LIGHT] = {
         .themeName       = "Light",
-        .topBarBg        = P8_LIGHT_GREY,   // 6
-        .topBarText      = P8_BLACK,        // 0
-        .topBarHoverBg   = P8_EXT_SAND,     // 6
-        .topBarHoverText = P8_BLACK,        // 0
-        .menuCardBorder  = P8_BLACK,        // 0
-        .menuCardBg      = P8_WHITE,        // 7
-        .menuCardText    = P8_BLACK,        // 0
-        .menuWindowBg    = P8_WHITE,        // 7
-        .menuWindowText  = P8_BLACK,        // 0
-        .menuWindowHoverBg   = P8_BLUE,     // 12
-        .menuWindowHoverText = P8_WHITE,    // 7
-        .buttonBg        = P8_DARK_GREY,    // 5
-        .buttonHover     = P8_LIGHT_GREY,   // 6
-        .buttonPressed   = P8_BLACK,        // 0
-        .buttonIcon      = P8_WHITE,        // 7
-        .buttonText      = P8_WHITE,        // 7
-        .windowBg        = P8_LIGHT_GREY,   // 6
-        .windowBorder    = P8_BLACK         // 0
+        .topBarBg        = P8_LIGHT_GREY,
+        .topBarText      = P8_BLACK,
+        .topBarHoverBg   = P8_EXT_SAND,
+        .topBarHoverText = P8_BLACK,
+        .menuCardBorder  = P8_BLACK,
+        .menuCardBg      = P8_WHITE,
+        .menuCardText    = P8_BLACK,
+        .menuWindowBg        = P8_WHITE,
+        .menuWindowText      = P8_BLACK,
+        .menuWindowHoverBg   = P8_BLUE,
+        .menuWindowHoverText = P8_WHITE,
+        .pauseMenuFill         = P8_EXT_BLACK,
+        .pauseMenuBorder       = P8_DARK_GREY,
+        .pauseMenuTitleBg      = P8_DARK_BLUE,
+        .pauseMenuTitleText    = P8_WHITE,
+        .pauseMenuBg           = P8_LIGHT_GREY,
+        .pauseMenuText         = P8_DARK_GREY,
+        .pauseMenuSelectedBg   = P8_BLUE,
+        .pauseMenuSelectedText = P8_WHITE,
+        .buttonBg        = P8_DARK_GREY,
+        .buttonHover     = P8_LIGHT_GREY,
+        .buttonPressed   = P8_BLACK,
+        .buttonIcon      = P8_WHITE,
+        .buttonText      = P8_WHITE,
+        .windowBg        = P8_LIGHT_GREY,
+        .windowBorder    = P8_BLACK
     },
     [THEME_DARK] = {
         .themeName       = "Dark",

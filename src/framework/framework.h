@@ -5,9 +5,9 @@
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+#include <stdarg.h>  // Required for va_list hardware stack manipulation
 #include <stdbool.h> 
 #include <stddef.h>
-
 
 // --- PICO_RAY OS ---
 #define PICO_RAY_OS_NAME "PICO-RAY OS"
@@ -21,6 +21,10 @@
 #define FONT_VIEWER_MAX_GLYPH_ROWS 16
 #define MAX_SHELL_COMMAND_LEN 64
 #define MAX_SYSTEM_MENUS 8
+#define MAX_TERMINAL_ROWS 14
+#define MAX_TERMINAL_ROW_LEN 64
+
+#define KERNEL_WARNING_RING_CAPACITY 8
 
 // --- PLUGIN ABI ---
 #define PR_PLUGIN_ABI_VERSION 1
@@ -43,6 +47,11 @@ typedef enum {
     DEBUG_TARGET_EDITOR,
     DEBUG_TARGET_COUNT
 } DebugTarget;
+
+typedef enum {
+    PAUSE_MODE_MAIN = 0,
+    PAUSE_MODE_OPTIONS
+} PauseMode;
 
 enum {
     SYS_APP_NONE = 0,
@@ -195,8 +204,11 @@ typedef struct {
     bool isPreParserEnabled;
     bool isSettingsOpen;
     bool isSystemInfoOpen;
+    bool isSystemVolumeMuted;
+    int  pauseMode;
     int  pauseSelectedIndex;
     int  systemVolume; // 0 to 100 percent cache
+    bool shouldResetApp;
     bool shouldCloseApp;
     bool shouldQuitOS;
 
@@ -213,14 +225,32 @@ typedef struct {
 
 // Central core system application identifier registers
 typedef struct {
-    char inputBuffer[MAX_SHELL_COMMAND_LEN]; // Stores the currently typed live characters row
-    int  cursorPosition;                     // Current character write index position inside the buffer
-    int  blinkCounter;                       // Timer tick counter animating the flashing underscore cursor
-    bool isCursorVisible;                    // Flashing toggle state switcher for rendering
-    
-    float promptX;                           // Screen position X anchor for the active command line
-    float promptY;                           // Screen position Y anchor for the active command line
+    char  inputBuffer[MAX_SHELL_COMMAND_LEN];  // Stores the currently typed live characters row
+    int   cursorPosition;                      // Current character write index position inside the buffer
+    int   blinkCounter;                        // Timer tick counter animating the flashing underscore cursor
+    bool  isCursorVisible;                     // Flashing toggle state switcher for rendering
+    float promptX;                             // Screen position X anchor for the active command line
+    float promptY;                             // Screen position Y anchor for the active command line
+    char  history[MAX_TERMINAL_ROWS][MAX_TERMINAL_ROW_LEN];  // Scrollback line history buffers for tracking terminal output log
+    int   historyCount;                        // Tracks how many static lines are currently stored
+    int   lastReturnCode;                      // Captures the status of the last executed command for Powerline UI feedback
 } ShellState;
+
+typedef void (*PauseActionCallback)(void);
+
+typedef struct {
+    char label[32];                 // Fixed safety string buffer for the item text
+    PauseActionCallback action;     // The compiled native execution callback pointer
+    PauseActionCallback actionLeft;
+    PauseActionCallback actionRight;
+    int luaCallbackRef;             // Hook architecture to trigger active Lua functions later
+} PauseMenuItem;
+
+typedef struct {
+    PauseMenuItem *items;           // Dynamic array pointer vector block
+    int size;                       // Python-like active element count (len)
+    int capacity;                   // Internal physical memory allocation capacity bounds
+} PauseMenuSystem;
 
 typedef struct {
     unsigned char *spriteRAM;  // Pointer to 128x128 graphics RAM
@@ -342,6 +372,8 @@ typedef struct {
     int menuCardBg, menuCardBorder, menuCardText;
     int menuWindowBg,      menuWindowText;
     int menuWindowHoverBg, menuWindowHoverText;
+    int pauseMenuFill, pauseMenuBorder;
+    int pauseMenuTitleBg, pauseMenuTitleText, pauseMenuBg, pauseMenuText, pauseMenuSelectedBg, pauseMenuSelectedText;
     int buttonBg, buttonHover, buttonPressed, buttonIcon, buttonText;
     int windowBg, windowBorder;
 } ThemeRegistry;
@@ -390,7 +422,9 @@ GraphicsSystem*  PR_GetGraphicsSystem(void);
 KernelState*     PR_GetKernelState(void);
 CartridgeRAM*    PR_GetCartridgeRAM(void);
 MenuSystem*      PR_GetMenuSystem(void);
-FileDialogState* PR_GetFileDialogSatte(void);
+PauseMenuSystem* PR_GetPauseMenu(void);
+
+FileDialogState* PR_GetFileDialogState(void);
 
 AppConfig        PR_GetActiveAppConfig(void);
 
@@ -441,8 +475,8 @@ void  PR_DrawIcon(int iconId, float startX, float startY, int colorId);
 void  PR_Line(float x1, float y1, float x2, float y2, int colorId);
 void  PR_Oval(float centerX, float centerY, float radiusX, float radiusY, int colorId);
 void  PR_OvalFill(float centerX, float centerY, float radiusX, float radiusY, int colorId);
-void  PR_Print(const char *text, float startX, float startY, int colorId);  // Existing standard baseline printer
-void  PR_PrintPro(int fontId, const char *text, float startX, float startY, int colorId);  // Allows developers to freely mix and render unlimited font faces simultaneously in a single frame pass!
+void  PR_Print(const char *text, float startX, float startY, int colorId);
+void  PR_PrintPro(int fontId, const char *text, float startX, float startY, int colorId);
 int   PR_PGet(int x, int y);
 void  PR_PSet(float x, float y, int colorId);
 void  PR_Rect(int x, int y, int width, int height, int colorId);
@@ -450,7 +484,12 @@ void  PR_RectFill(float x, float y, float w, float h, int colorId);
 int   PR_SGet(int sheetX, int sheetY);
 void  PR_SSet(int sheetX, int sheetY, int colorId);
 void  PR_Spr(const unsigned char *customBytes, int w, int h, float x, float y, int colorId);
+size_t PR_StrlCpy(char *dst, const char *src, size_t siz);
+bool  PR_StrFormat(char *dst, size_t siz, const char *format, ...);
 void  PR_UpdateVRAM(int x, int y, int colorId);
+
+// pr-3d.c
+void  PR_TriFill(float x1, float y1, float x2, float y2, float x3, float y3, int colorId);
 
 // pr-app.c
 unsigned int PR_GenerateAppHash(const char *title, const char *author);
@@ -492,6 +531,9 @@ char* PR_PreParseLuaSyntax(const char* sourceCode);
 // pr-mouse.c
 MouseState PR_GetMousePosition(void);
 
+// pr-network.c
+bool PR_Network_DownloadFile(const char *url, const char *destPath);
+
 // pr-p8-compat.c
 void  P8_Spr(int spriteId, float destX, float destY, float w, float h, bool flipX, bool flipY);
 
@@ -513,9 +555,15 @@ void  PR_AddMenuItem(Menu *menu, const char *text, int iconId, void (*callback)(
 void  PR_RegisterApplicationMenu(Menu appMenu);
 Menu* PR_GetRegisteredMenu(const char *title);
 
+// pr-ui-pause-menu.c
+void PR_AppendPauseMenuItem(PauseMenuItem item);
+void PR_InitPauseMenu(int initialCapacity);
+bool PR_UpdatePauseMenu(MouseState mousePos);
+void PR_DrawPauseMenu(void);
+void PR_CleanupPauseMenu(void);
+
 // pr-ui-window.c
 void  PR_DrawDebugWindow(void);
-void  PR_DrawPauseWindow(void);
 void  PR_DrawAboutWindow(void);
 void  PR_DrawSystemInfoWindow(void);
 
@@ -526,6 +574,7 @@ int   PR_Lua_Btn(lua_State *L);
 int   PR_Lua_Btnp(lua_State *L);
 int   PR_Lua_Cls(lua_State *L);
 int   PR_Lua_ExitOS(lua_State *L);
+int   PR_Lua_Line(lua_State *L);
 int   PR_Lua_MusicPlay(lua_State *L);
 int   PR_Lua_MusicStop(lua_State *L);
 int   PR_Lua_PAlt(lua_State *L);
@@ -539,6 +588,7 @@ int   PR_Lua_SetFont(lua_State *L);
 int   PR_Lua_SFXPlay(lua_State *L);
 int   PR_Lua_SGet(lua_State *L);
 int   PR_Lua_SSet(lua_State *L);
+int   PR_Lua_TriFill(lua_State *L);
 
 // lua/api-lua-pico8.c
 int   P8_Lua_MGet(lua_State *L);

@@ -12,6 +12,7 @@ void PR_Lua_LoadAPI(lua_State *L) {
     lua_register(L, "btn",        PR_Lua_Btn);       // Input register
     lua_register(L, "btnp",       PR_Lua_Btnp);
     lua_register(L, "exit_os",    PR_Lua_ExitOS);    // Register our fresh close command keyword
+    lua_register(L, "line",       PR_Lua_Line);
     lua_register(L, "pget",       PR_Lua_PGet);      // Get pixel color
     lua_register(L, "pset",       PR_Lua_PSet);      // Set pixel color
     lua_register(L, "print",      PR_Lua_Print);     // Print text
@@ -21,6 +22,7 @@ void PR_Lua_LoadAPI(lua_State *L) {
     lua_register(L, "set_font",   PR_Lua_SetFont);
     lua_register(L, "sget",       PR_Lua_SGet);
     lua_register(L, "sset",       PR_Lua_SSet);
+    lua_register(L, "trifill",    PR_Lua_TriFill);
 }
 
 // Master registration gateway injecting our advanced extended blueprint rules

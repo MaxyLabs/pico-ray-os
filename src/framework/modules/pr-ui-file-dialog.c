@@ -19,7 +19,7 @@ static int CompareFileNames(const void *a, const void *b) {
 static void InitBaseFileDialog(const char *folder, const char *extension, FileDialogMode mode, void (*callback)(const char *filePath)) {
     if (callback == NULL) return;
 
-    FileDialogState *dialogState = PR_GetFileDialogSatte();
+    FileDialogState *dialogState = PR_GetFileDialogState();
 
     // 1. Wipe and re-align our persistent state container register completely
     memset(dialogState, 0, sizeof(FileDialogState));
@@ -66,7 +66,7 @@ void PR_OpenFileDialog(const char *folder, const char *extension, void (*callbac
 
 // THE EXPOSED SAVE PIPELINE GATEWAY
 void PR_SaveFileDialog(const char *folder, const char *extension, void (*callback)(const char *filePath)) {
-    FileDialogState *dialogState = PR_GetFileDialogSatte();
+    FileDialogState *dialogState = PR_GetFileDialogState();
 
     InitBaseFileDialog(folder, extension, FILE_DIALOG_SAVE, callback);
     
@@ -76,7 +76,7 @@ void PR_SaveFileDialog(const char *folder, const char *extension, void (*callbac
 }
 
 void PR_UpdateFileDialog(MouseState mousePos) {
-    FileDialogState *dialogState = PR_GetFileDialogSatte();
+    FileDialogState *dialogState = PR_GetFileDialogState();
     if (!dialogState->isOpen) return;
 
     // 1. REFRESH CONTROL INTERACTION BUTTONS METRICS ROW
@@ -175,7 +175,7 @@ void PR_UpdateFileDialog(MouseState mousePos) {
 
 void PR_DrawFileDialog(void) {
     GraphicsSystem *gfx = PR_GetGraphicsSystem();
-    FileDialogState *dialogState = PR_GetFileDialogSatte();
+    FileDialogState *dialogState = PR_GetFileDialogState();
     if (!dialogState->isOpen) return;
 
     // Fetch dynamic systemic styling tokens parameters from theme capsule link safely

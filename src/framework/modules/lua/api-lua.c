@@ -76,6 +76,22 @@ int PR_Lua_ExitOS(lua_State *L) {
     return 0; // Returns 0 arguments to Lua
 }
 
+// Bridges Lua 'line(x1, y1, x2, y2, colorId)' directly to native C 'PR_Line()'
+int PR_Lua_Line(lua_State *L) {
+    // Check arguments and retrieve values from the Lua stack safely
+    float x1      = (float)luaL_checknumber(L, 1);
+    float y1      = (float)luaL_checknumber(L, 2);
+    float x2      = (float)luaL_checknumber(L, 3);
+    float y2      = (float)luaL_checknumber(L, 4);
+    int colorId   = (int)luaL_checkinteger(L, 5);
+
+    // Invoke the core rendering framework subsystem line engine
+    PR_Line(x1, y1, x2, y2, colorId);
+
+    return 0; // Returns 0 arguments back to the active Lua execution context
+}
+
+
 // Bridges Lua 'music_play("track.mp3")' natively to the kernel streamer
 int PR_Lua_MusicPlay(lua_State *L) {
     const char *fileName = luaL_checkstring(L, 1);
@@ -250,5 +266,19 @@ int PR_Lua_SFXPlay(lua_State *L) {
     if (fileName != NULL) {
         PR_PlaySFX(fileName);
     }
+    return 0;
+}
+
+// Lua API binding for solid triangle fills: trifill(x1, y1, x2, y2, x3, y3, colorId)
+int PR_Lua_TriFill(lua_State *L) {
+    float x1    = (float)luaL_checknumber(L, 1);
+    float y1    = (float)luaL_checknumber(L, 2);
+    float x2    = (float)luaL_checknumber(L, 3);
+    float y2    = (float)luaL_checknumber(L, 4);
+    float x3    = (float)luaL_checknumber(L, 5);
+    float y3    = (float)luaL_checknumber(L, 6);
+    int colorId = (int)luaL_checkinteger(L, 7);
+
+    PR_TriFill(x1, y1, x2, y2, x3, y3, colorId);
     return 0;
 }

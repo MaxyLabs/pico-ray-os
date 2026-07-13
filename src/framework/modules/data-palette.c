@@ -131,38 +131,40 @@ const PaletteRegistry paletteData[PALETTE_COUNT] = {
         .colorCount = 32,
         .colors = {
             { 0x08, 0x0A, 0x10, 255 },  // #080A10  BG_OBSIDIAN      : Global canvas black, transparency fill, absolute void
-            { 0x1C, 0x20, 0x25, 255 },  // #1C2025  DARK_CHARCOAL    : Dark mode surface background, drop shadows, dark outlines
-            { 0xA3, 0xA9, 0xB0, 255 },  // #A3A9B0  LIGHT_GREY       : Metallic highlights, light mode panels, unselected items
-            { 0xC2, 0xC8, 0xD0, 255 },  // #C2C8D0  SILVER_TINT      : Bright light surfaces, disabled light mode button fills
-            { 0x99, 0x00, 0x33, 255 },  // #990033  BURGUNDY_SHADOW  : Shadow steps for crimson or pink sprites, dark status fill
-            { 0xFF, 0x00, 0x55, 255 },  // #FF0055  WALKMAN_PINK     : Primary brand action button, health bar fill, laser projectiles
-            { 0x00, 0x5B, 0x66, 255 },  // #005B66  DEEP_SEA_CYAN    : Shadows for cyan tech sprites, empty magic/mana bar fill
-            { 0x00, 0xE5, 0xFF, 255 },  // #00E5FF  ELECTRIC_TEAL    : Active status indicator toggles, mana meter fill, cyber lasers
-            { 0x4A, 0x1A, 0x00, 255 },  // #4A1A00  MAROON_SHADOW    : Low-health empty bar indicator, dirt/rock shadow layers
-            { 0x99, 0x33, 0x00, 255 },  // #993300  ALPHA_COPPER     : Heavy brick/earth textures, rusted metal plate tiles
-            { 0x59, 0x44, 0x11, 255 },  // #594411  DARK_AMBER       : Treasure chest shadows, ancient architecture brick grids
-            { 0xD4, 0xAF, 0x37, 255 },  // #D4AF37  NATIVE_GOLD      : Collected currency counts, legendary loot frames, active stars
-            { 0x0A, 0x26, 0x12, 255 },  // #0A2612  FOREST_SHADOW    : Deep environment background foliage, shadow text outlines
-            { 0x00, 0x66, 0x22, 255 },  // #006622  BROADCAST_GREEN  : Mid-tone grass tiles, basic flora grids, success message fills
             { 0x0F, 0x1A, 0x36, 255 },  // #0F1A36  MIDNIGHT_BLUE    : Dark sky backgrounds, deep ocean grids, storm level weather
-            { 0x00, 0x37, 0xCD, 255 },  // #0037CD  PLAYSTATION_BLUE : Core UI menu banners, classic blue screens, water tiles
-
+            { 0x99, 0x00, 0x33, 255 },  // #990033  BURGUNDY_SHADOW  : Shadow steps for crimson or pink sprites, dark status fill
+            { 0x00, 0x5B, 0x66, 255 },  // #005B66  DEEP_SEA_CYAN    : Shadows for cyan tech sprites, empty magic/mana bar fill
+            { 0x99, 0x33, 0x00, 255 },  // #993300  ALPHA_COPPER     : Heavy brick/earth textures, rusted metal plate tiles
             { 0x4B, 0x4B, 0x4B, 255 },  // #4B4B4B  MID_GREY         : Window panels, interior grid lines, disabled text
-            { 0x74, 0x7A, 0x80, 255 },  // #747A80  SLATE_GREY       : UI divider strokes, button borders, secondary text faces
-            { 0xE6, 0xEC, 0xF2, 255 },  // #E6ECF2  OFF_WHITE        : Standard text face, primary crisp UI elements
+            { 0xC2, 0xC8, 0xD0, 255 },  // #C2C8D0  SILVER_TINT      : Bright light surfaces, disabled light mode button fills
             { 0xFF, 0xFF, 0xFF, 255 },  // #FFFFFF  PURE_WHITE       : Light beam peaks, text selections, flashes, and damage blink
+            { 0xFF, 0x00, 0x55, 255 },  // #FF0055  WALKMAN_PINK     : Primary brand action button, health bar fill, laser projectiles
+            { 0xFF, 0x45, 0x00, 255 },  // #FF4500  ALPHA_ORANGE     : Low-health warning bar, fiery explosions, lava tile loops
+            { 0xFF, 0xE0, 0x66, 255 },  // #FFE066  TROPHY_GOLD      : Gold reflection highlights, critical hit popup text shadows
+            { 0x00, 0xCC, 0x44, 255 },  // #00CC44  TRINITRON_GREEN  : Bright moss highlights, success notification checkmark icons
+            { 0x00, 0xE5, 0xFF, 255 },  // #00E5FF  ELECTRIC_TEAL    : Active status indicator toggles, mana meter fill, cyber lasers
+            { 0x4A, 0x69, 0x84, 255 },  // #4A6984  SLATE_BLUE       : Steel weapon blades, storm clouds, passive navigation frames
             { 0xFF, 0x66, 0x99, 255 },  // #FF6699  PULSE_PINK       : Action button hover states, health bar glowing tube lines
             { 0xFF, 0xE5, 0xEE, 255 },  // #FFE5EE  PINK_TINT        : Neon pink reflections, heart icons, soft glow highlights
-            { 0x66, 0xF3, 0xFF, 255 },  // #66F3FF  AQUA_MINT        : Mana bar glow line, neon typography accents, hover highlights
-            { 0xE5, 0xFD, 0xFF, 255 },  // #E5FDFF  CYAN_TINT        : Ice effects, futuristic light reflections, soft glow windows
-            { 0xFF, 0x45, 0x00, 255 },  // #FF4500  ALPHA_ORANGE     : Low-health warning bar, fiery explosions, lava tile loops
+
+            { 0x1C, 0x20, 0x25, 255 },  // #1C2025  DARK_CHARCOAL    : Dark mode surface background, drop shadows, dark outlines
+            { 0x0A, 0x26, 0x12, 255 },  // #0A2612  FOREST_SHADOW    : Deep environment background foliage, shadow text outlines
+            { 0x3A, 0x15, 0x3B, 255 },  // #3A153B  PLUM_VAPOR       :
+            { 0x00, 0x66, 0x22, 255 },  // #006622  BROADCAST_GREEN  : Mid-tone grass tiles, basic flora grids, success message fills
+            { 0x4A, 0x1A, 0x00, 255 },  // #4A1A00  MAROON_SHADOW    : Low-health empty bar indicator, dirt/rock shadow layers
+            { 0x59, 0x44, 0x11, 255 },  // #594411  DARK_AMBER       : Treasure chest shadows, ancient architecture brick grids
+            { 0x74, 0x7A, 0x80, 255 },  // #747A80  SLATE_GREY       : UI divider strokes, button borders, secondary text faces
+            { 0xE6, 0xEC, 0xF2, 255 },  // #E6ECF2  OFF_WHITE        : Standard text face, primary crisp UI elements
+            { 0x7A, 0x00, 0x1A, 255 },  // #7A001A  CRIMSON_RETRO    :
             { 0xFF, 0x99, 0x66, 255 },  // #FF9966  VIVID_COPPER     : Warning bar highlight steps, fire particle bursts
-            { 0xFF, 0xE0, 0x66, 255 },  // #FFE066  TROPHY_GOLD      : Gold reflection highlights, critical hit popup text shadows
-            { 0xFF, 0xF9, 0xE5, 255 },  // #FFF9E5  AMBER_CREAM      : Character dialogue backgrounds, scroll sheets, skin base
-            { 0x00, 0xCC, 0x44, 255 },  // #00CC44  TRINITRON_GREEN  : Bright moss highlights, success notification checkmark icons
+            { 0xD4, 0xAF, 0x37, 255 },  // #D4AF37  NATIVE_GOLD      : Collected currency counts, legendary loot frames, active stars
             { 0x66, 0xFF, 0x99, 255 },  // #66FF99  LIME_POP         : Emerald gems, glowing poison status elements, leaf highlights
-            { 0x4A, 0x69, 0x84, 255 },  // #4A6984  SLATE_BLUE       : Steel weapon blades, storm clouds, passive navigation frames
-            { 0xB0, 0xC4, 0xDE, 255 }   // #B0C4DE  ICY_BLUE         : Sky gradient highlights, mist, frost status indicator overlays
+            { 0x00, 0x37, 0xCD, 255 },  // #0037CD  PLAYSTATION_BLUE : Core UI menu banners, classic blue screens, water tiles
+            { 0xB0, 0xC4, 0xDE, 255 },  // #B0C4DE  ICY_BLUE         : Sky gradient highlights, mist, frost status indicator overlays
+            { 0x66, 0xF3, 0xFF, 255 },  // #66F3FF  AQUA_MINT        : Mana bar glow line, neon typography accents, hover highlights
+            { 0xE5, 0xFD, 0xFF, 255 }   // #E5FDFF  CYAN_TINT        : Ice effects, futuristic light reflections, soft glow windows
+            // { 0xA3, 0xA9, 0xB0, 255 },  // #A3A9B0  LIGHT_GREY       : Metallic highlights, light mode panels, unselected items
+            // { 0xFF, 0xF9, 0xE5, 255 },  // #FFF9E5  AMBER_CREAM      : Character dialogue backgrounds, scroll sheets, skin base
         }
     }
 };
